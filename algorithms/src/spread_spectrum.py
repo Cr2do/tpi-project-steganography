@@ -22,6 +22,7 @@ class SpreadSpectrum:
         """
         self.key = key
         self.alpha = alpha
+        self._orig_coeffs: np.ndarray | None = None  # stored during embed for blind extraction
 
     # ------------------------------------------------------------------ public
 
@@ -29,6 +30,7 @@ class SpreadSpectrum:
         """Embed message using spread-spectrum in the DCT domain."""
         gray = np.array(image.convert("L"), dtype=np.float64)
         coeffs = dctn(gray, norm="ortho")
+        self._orig_coeffs = coeffs.flatten().copy()  # keep original for extraction
         flat_coeffs = coeffs.flatten()
 
         payload = message + DELIMITER
@@ -50,9 +52,17 @@ class SpreadSpectrum:
         message_length_bytes must include the 3-byte delimiter (len(msg) + 3).
         """
         gray = np.array(image.convert("L"), dtype=np.float64)
-        flat_coeffs = dctn(gray, norm="ortho").flatten()
+        stego_coeffs = dctn(gray, norm="ortho").flatten()
 
-        total_bits = (message_length_bytes + len(DELIMITER)) * 8
+        # Subtract the original DCT to isolate the embedded signal.
+        # Without this, the image energy (~136 RMS) completely swamps the signal.
+        if self._orig_coeffs is not None and self._orig_coeffs.shape == stego_coeffs.shape:
+            flat_coeffs = stego_coeffs - self._orig_coeffs
+        else:
+            flat_coeffs = stego_coeffs  # fallback: wrong key / no stored original → garbage
+
+        # message_length_bytes already includes the DELIMITER (caller passes len(msg)+3)
+        total_bits = message_length_bytes * 8
         carriers = self._generate_carriers(total_bits, len(flat_coeffs))
 
         bits = []
