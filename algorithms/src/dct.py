@@ -7,6 +7,7 @@ Inspired by JPEG steganography (similar to JSteg/F5 principle).
 import numpy as np
 from PIL import Image
 from scipy.fft import dctn, idctn
+from .robustesse import RobustCodec
 
 
 # Mid-frequency coefficients used for embedding (avoids DC and high-freq)
@@ -20,8 +21,17 @@ class DCT:
         # Larger step = more robust but less invisible
         self.q = quantization_step
 
-    def embed(self, image: Image.Image, message: bytes) -> Image.Image:
-        """Embed message bits into mid-frequency DCT coefficients."""
+    def embed(self, image: Image.Image, message: bytes, robust: bool = False) -> Image.Image:
+        """Embed message bits into mid-frequency DCT coefficients.
+
+        Args:
+            image: Cover image.
+            message: Bytes to hide.
+            robust: If True, apply Reed-Solomon + repetition coding before embedding.
+        """
+        if robust:
+            message = RobustCodec().encode(message)
+
         gray = np.array(image.convert("L"), dtype=np.float64)
         payload = message + DELIMITER
         bits = _bytes_to_bits(payload)
@@ -58,8 +68,13 @@ class DCT:
         stego = np.clip(gray, 0, 255).astype(np.uint8)
         return Image.fromarray(stego, "L").convert(image.mode)
 
-    def extract(self, image: Image.Image) -> bytes:
-        """Extract hidden bits from DCT coefficients."""
+    def extract(self, image: Image.Image, robust: bool = False) -> bytes:
+        """Extract hidden bits from DCT coefficients.
+
+        Args:
+            image: Stego image (possibly attacked).
+            robust: Must match the flag used during embed.
+        """
         gray = np.array(image.convert("L"), dtype=np.float64)
         h, w = gray.shape
         bits: list[int] = []
@@ -73,7 +88,11 @@ class DCT:
                     q_val = int(round(coeffs[r, c] / self.q))
                     bits.append(q_val & 1)
 
-        return _bits_to_bytes_until_delimiter(bits)
+        raw = _bits_to_bytes_until_delimiter(bits)
+
+        if robust:
+            return RobustCodec().decode(raw)
+        return raw
 
 
 # ------------------------------------------------------------------ helpers

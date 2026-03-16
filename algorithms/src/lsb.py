@@ -5,13 +5,24 @@ Embeds message bits directly into the LSBs of pixel channel values.
 
 import numpy as np
 from PIL import Image
+from .robustesse import RobustCodec
 
 
 class LSB:
     DELIMITER = b"\x00\x00\x00"  # marks end of hidden message
 
-    def embed(self, image: Image.Image, message: bytes) -> Image.Image:
-        """Embed a byte message into the LSB of each channel byte."""
+    def embed(self, image: Image.Image, message: bytes, robust: bool = False) -> Image.Image:
+        """Embed a byte message into the LSB of each channel byte.
+
+        Args:
+            image: Cover image.
+            message: Bytes to hide.
+            robust: If True, apply Reed-Solomon + repetition coding before embedding
+                    so the message can survive JPEG compression and other attacks.
+        """
+        if robust:
+            message = RobustCodec().encode(message)
+
         payload = message + self.DELIMITER
         pixels = np.array(image, dtype=np.uint8)
         flat = pixels.flatten()
@@ -27,11 +38,20 @@ class LSB:
 
         return Image.fromarray(flat.reshape(pixels.shape), image.mode)
 
-    def extract(self, image: Image.Image) -> bytes:
-        """Extract the hidden message from the LSBs."""
+    def extract(self, image: Image.Image, robust: bool = False) -> bytes:
+        """Extract the hidden message from the LSBs.
+
+        Args:
+            image: Stego image (possibly attacked).
+            robust: Must match the flag used during embed.
+        """
         flat = np.array(image, dtype=np.uint8).flatten()
         bits = [int(b) & 1 for b in flat]
-        return self._bits_to_bytes_until_delimiter(bits)
+        raw = self._bits_to_bytes_until_delimiter(bits)
+
+        if robust:
+            return RobustCodec().decode(raw)
+        return raw
 
     # ------------------------------------------------------------------ helpers
 
