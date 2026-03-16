@@ -3,14 +3,19 @@ Tests for the robustesse module (RobustCodec, Reed-Solomon, repetition)
 and for the robust=True flag on each steganography algorithm.
 """
 
+import sys
+import os
+
 import pytest
 import numpy as np
 from PIL import Image
 
-from algorithms.src.robustesse import RobustCodec, rs_encode, rs_decode, majority_vote
-from algorithms.src.lsb import LSB
-from algorithms.src.dct import DCT
-from algorithms.src.spread_spectrum import SpreadSpectrum
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from src.robustesse import RobustCodec, rs_encode, rs_decode, majority_vote
+from src.lsb import LSB
+from src.dct import DCT
+from src.spread_spectrum import SpreadSpectrum
 
 
 # ------------------------------------------------------------------ fixtures
