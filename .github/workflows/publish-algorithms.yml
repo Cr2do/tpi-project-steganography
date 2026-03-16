@@ -1,0 +1,41 @@
+name: Publish tpi-stegano to GitHub Packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed by setuptools-scm to read the full tag history
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build distribution packages
+        working-directory: algorithms
+        run: python -m build
+        # produces dist/tpi_stegano-*.tar.gz and dist/tpi_stegano-*.whl
+
+      - name: Publish to GitHub Packages (PyPI registry)
+        working-directory: algorithms
+        env:
+          TWINE_USERNAME: ${{ github.actor }}
+          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          twine upload
+          --repository-url https://pypi.pkg.github.com/${{ github.repository_owner }}
+          dist/*
