@@ -36,8 +36,8 @@ jobs:
         working-directory: algorithms
         env:
           TWINE_USERNAME: ${{ github.actor }}
-          TWINE_PASSWORD: ${{ secrets.TPI_TOKEN }}
+          TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: >
           twine upload
-          --repository-url https://pypi.pkg.github.com/${{ github.repository }}/
+          --repository-url https://pypi.pkg.github.com/${{ github.repository_owner }}/
           dist/*
