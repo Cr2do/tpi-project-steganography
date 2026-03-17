@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=69", "wheel", "setuptools-scm>=8"]
-build-backend = "setuptools.backends.legacy:build"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "algo-stegano-tpi"
-dynamic = ["version"]
+version = "1.0.0"
 description = "Steganography algorithms (LSB, DCT, Spread Spectrum) with optional Reed-Solomon robustness"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,11 +13,6 @@ dependencies = [
     "scipy>=1.11",
     "reedsolo>=1.7",
 ]
-
-# Version is derived automatically from the git tag at build time.
-# Tag format expected:  algorithms/v1.2.3  →  version 1.2.3
-[tool.setuptools_scm]
-tag_regex = "^algorithms/v(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+.*)"
 
 # Maps the importable package "tpi_stegano" to the existing "src/" directory.
 # Usage in Django:  from tpi_stegano import LSB, DCT, SpreadSpectrum
