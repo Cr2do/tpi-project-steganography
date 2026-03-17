@@ -1,4 +1,4 @@
-name: Publish tpi-stegano to GitHub Packages
+name: Publish secure-stegano to PyPI
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: pip install build
+        run: pip install build twine
 
       - name: Set version
         working-directory: algorithms
@@ -29,13 +29,11 @@ jobs:
       - name: Build distribution packages
         working-directory: algorithms
         run: python -m build
-        # produces dist/tpi_stegano-*.tar.gz and dist/tpi_stegano-*.whl
+        # produces dist/algo_stegano_tpi-*.tar.gz and dist/algo_stegano_tpi-*.whl
 
-      - name: Publish to GitHub Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "algorithms/v1.0.${{ github.run_number }}"
-          name: "algo-stegano-tpi v1.0.${{ github.run_number }}"
-          files: |
-            algorithms/dist/*.whl
-            algorithms/dist/*.tar.gz
+      - name: Publish to PyPI
+        working-directory: algorithms
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*

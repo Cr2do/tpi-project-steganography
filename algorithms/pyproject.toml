@@ -3,16 +3,33 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "algo-stegano-tpi"
+name = "secure-stegano"
 version = "1.0.0"
 description = "Steganography algorithms (LSB, DCT, Spread Spectrum) with optional Reed-Solomon robustness"
+readme = "Readme.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+  { name = "Cr2do" }
+]
+keywords = ["steganography", "LSB", "DCT", "spread-spectrum", "reed-solomon", "watermarking"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security :: Cryptography",
+  "Topic :: Multimedia :: Graphics",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
 dependencies = [
     "numpy>=1.24",
     "Pillow>=10.0",
     "scipy>=1.11",
     "reedsolo>=1.7",
 ]
+
+[project.urls]
+Repository = "https://github.com/Cr2do/tpi-project-steganography"
 
 # Maps the importable package "tpi_stegano" to the existing "src/" directory.
 # Usage in Django:  from tpi_stegano import LSB, DCT, SpreadSpectrum
