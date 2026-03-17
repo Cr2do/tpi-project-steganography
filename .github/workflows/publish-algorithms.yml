@@ -39,5 +39,5 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.TPI_TOKEN }}
         run: >
           twine upload
-          --repository-url https://pypi.pkg.github.com/${{ github.repository_owner }}/
+          --repository-url https://pypi.pkg.github.com/${{ github.repository }}/
           dist/*
