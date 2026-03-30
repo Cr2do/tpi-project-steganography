@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code de vérification</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #f4f6f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1a1a2e;
+    }
+    .wrapper {
+      max-width: 560px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 32px 40px;
+      text-align: center;
+    }
+    .header h1 {
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .header p {
+      color: #a0aec0;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .body {
+      padding: 40px;
+    }
+    .body p {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #4a5568;
+    }
+    .code-block {
+      margin: 32px 0;
+      text-align: center;
+    }
+    .code {
+      display: inline-block;
+      background: #f0f4ff;
+      border: 2px dashed #4a6fa5;
+      border-radius: 10px;
+      padding: 18px 36px;
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: 10px;
+      color: #1a1a2e;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .info-box {
+      background: #fff8e1;
+      border-left: 4px solid #f6c90e;
+      border-radius: 4px;
+      padding: 14px 18px;
+      margin-top: 24px;
+      font-size: 14px;
+      color: #6b5900;
+      line-height: 1.6;
+    }
+    .warning-box {
+      background: #fff5f5;
+      border-left: 4px solid #e53e3e;
+      border-radius: 4px;
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #742a2a;
+      line-height: 1.6;
+    }
+    .footer {
+      background: #f8fafc;
+      border-top: 1px solid #e8ecf0;
+      padding: 24px 40px;
+      text-align: center;
+    }
+    .footer p {
+      font-size: 12px;
+      color: #a0aec0;
+      line-height: 1.8;
+    }
+    .footer a {
+      color: #4a6fa5;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+
+      <!-- Header -->
+      <div class="header">
+        <h1>Verification</h1>
+        <p>Code de connexion à usage unique</p>
+      </div>
+
+      <!-- Body -->
+      <div class="body">
+        <p>Bonjour,</p>
+        <p style="margin-top: 12px;">
+          Vous avez demandé un code de vérification pour accéder à votre compte.
+          Voici votre code :
+        </p>
+
+        <div class="code-block">
+          <span class="code">{{ code }}</span>
+        </div>
+
+        <div class="info-box">
+          ⏱ Ce code est valable pendant <strong>{{ expiry_minutes }} minutes</strong>
+          et ne peut être utilisé qu'une seule fois.
+        </div>
+
+        <div class="warning-box">
+          ⚠️ Si vous n'avez pas fait cette demande, ignorez cet email.
+          Ne communiquez jamais ce code à une tierce personne.
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p>
+          Besoin d'aide ?
+          <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+        </p>
+        <p style="margin-top: 6px;">
+          Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

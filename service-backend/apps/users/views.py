@@ -1,16 +1,29 @@
 """
 User views.
 
-Endpoints:
-  POST   /api/users/register/     — public registration
-  POST   /api/users/login/        — obtain JWT tokens
-  GET    /api/users/me/           — authenticated user reads their own profile
-  PATCH  /api/users/me/           — authenticated user updates their own profile
-  GET    /api/users/              — admin: list all users
-  POST   /api/users/              — admin: create a user with any role
-  GET    /api/users/{id}/         — admin: retrieve a specific user
-  PATCH  /api/users/{id}/         — admin: update a specific user
-  DELETE /api/users/{id}/         — admin: delete a specific user
+Auth flows:
+
+  Registration (2 steps):
+    POST /api/users/register/         — create inactive account + send OTP
+    POST /api/users/register/verify/  — email + OTP code → activate + return JWT
+
+  Login (2 steps):
+    POST /api/users/login/            — email + password → send OTP (no JWT yet)
+    POST /api/users/login/verify/     — email + OTP code → return JWT
+
+  Profile:
+    GET   /api/users/me/   — read own profile
+    PATCH /api/users/me/   — update own profile
+
+  Token:
+    POST /api/users/token/refresh/    — refresh JWT
+
+  Admin:
+    GET    /api/users/              — list all users
+    POST   /api/users/              — create user with any role
+    GET    /api/users/{id}/         — retrieve user
+    PATCH  /api/users/{id}/         — update user
+    DELETE /api/users/{id}/         — delete user
 """
 from drf_spectacular.utils import (
     extend_schema,
@@ -24,38 +37,40 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import User
+from .emails import send_otp_email
+from .models import OTPCode, User
 from .permissions import IsAdminRole
 from .serializers import (
     AdminUserSerializer,
     LoginSerializer,
+    LoginVerifySerializer,
     RegisterSerializer,
+    RegisterVerifySerializer,
     UserSerializer,
 )
 
 
 # ---------------------------------------------------------------------------
-# Register
+# Register — step 1: create inactive account + send OTP
 # ---------------------------------------------------------------------------
 
 @extend_schema(
     tags=["Auth"],
-    summary="Register a new user",
+    summary="Register — step 1: create account",
     description=(
-        "Creates a new user account with the role set to 'user'. "
-        "No authentication is required."
+        "Creates an inactive user account and sends a 6-digit OTP to the email. "
+        "The account cannot be used until step 2 (verify) is completed."
     ),
     request=RegisterSerializer,
     responses={
-        201: UserSerializer,
+        201: OpenApiResponse(description="Account created, OTP sent"),
         400: OpenApiResponse(description="Validation errors"),
     },
     examples=[
         OpenApiExample(
-            "Registration example",
+            "Register example",
             value={
                 "email": "alice@example.com",
-                "username": "alice",
                 "first_name": "Alice",
                 "last_name": "Smith",
                 "password": "StrongPass123!",
@@ -66,7 +81,7 @@ from .serializers import (
     ],
 )
 class RegisterView(generics.CreateAPIView):
-    """Public endpoint — creates a regular user account."""
+    """Step 1 — creates an inactive account and sends an OTP."""
 
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
@@ -75,42 +90,86 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        response_serializer = UserSerializer(user, context={"request": request})
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        otp = OTPCode.generate(user.email)
+        send_otp_email(user.email, otp.code, OTPCode.EXPIRY_MINUTES)
+
+        return Response(
+            {"detail": f"Compte créé. Un code de vérification a été envoyé à {user.email}."},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ---------------------------------------------------------------------------
-# Login
+# Register — step 2: verify OTP → activate account + return JWT
 # ---------------------------------------------------------------------------
 
 @extend_schema(
     tags=["Auth"],
-    summary="Login — obtain JWT tokens",
+    summary="Register — step 2: verify OTP",
     description=(
-        "Authenticates the user with email and password. "
-        "Returns a JWT access token (short-lived) and a refresh token (long-lived)."
+        "Submits the OTP received by email. "
+        "On success, the account is activated and JWT tokens are returned immediately."
     ),
-    request=LoginSerializer,
+    request=RegisterVerifySerializer,
     responses={
         200: OpenApiResponse(
-            description="JWT tokens + user info",
+            description="Account activated — JWT tokens returned",
             response={
                 "type": "object",
                 "properties": {
                     "access": {"type": "string"},
                     "refresh": {"type": "string"},
-                    "user": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "integer"},
-                            "email": {"type": "string"},
-                            "role": {"type": "string"},
-                        },
-                    },
+                    "user": {"type": "object"},
                 },
             },
         ),
-        400: OpenApiResponse(description="Invalid credentials"),
+        400: OpenApiResponse(description="Invalid or expired OTP"),
+    },
+    examples=[
+        OpenApiExample(
+            "Register verify example",
+            value={"email": "alice@example.com", "code": "482910"},
+            request_only=True,
+        ),
+    ],
+)
+class RegisterVerifyView(APIView):
+    """Step 2 — validates OTP, activates account, returns JWT tokens."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = RegisterVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        return Response(
+            {
+                "access": data["access"],
+                "refresh": data["refresh"],
+                "user": UserSerializer(data["user"], context={"request": request}).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Login — step 1: validate credentials + send OTP
+# ---------------------------------------------------------------------------
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Login — step 1: validate credentials",
+    description=(
+        "Authenticates email and password. "
+        "If valid, sends a 6-digit OTP to the email. "
+        "JWT tokens are only issued after step 2 (verify)."
+    ),
+    request=LoginSerializer,
+    responses={
+        200: OpenApiResponse(description="Credentials valid, OTP sent"),
+        400: OpenApiResponse(description="Invalid credentials or inactive account"),
     },
     examples=[
         OpenApiExample(
@@ -121,23 +180,73 @@ class RegisterView(generics.CreateAPIView):
     ],
 )
 class LoginView(APIView):
-    """Public endpoint — returns JWT access and refresh tokens."""
+    """Step 1 — validates credentials and sends an OTP. No JWT returned yet."""
 
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        serializer = LoginSerializer(
-            data=request.data, context={"request": request}
+        serializer = LoginSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data["user"]
+        otp = OTPCode.generate(user.email)
+        send_otp_email(user.email, otp.code, OTPCode.EXPIRY_MINUTES)
+
+        return Response(
+            {"detail": f"Code de vérification envoyé à {user.email}."},
+            status=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# Login — step 2: verify OTP → return JWT
+# ---------------------------------------------------------------------------
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Login — step 2: verify OTP",
+    description=(
+        "Submits the OTP received by email after login step 1. "
+        "On success, returns JWT access and refresh tokens."
+    ),
+    request=LoginVerifySerializer,
+    responses={
+        200: OpenApiResponse(
+            description="JWT tokens returned",
+            response={
+                "type": "object",
+                "properties": {
+                    "access": {"type": "string"},
+                    "refresh": {"type": "string"},
+                    "user": {"type": "object"},
+                },
+            },
+        ),
+        400: OpenApiResponse(description="Invalid or expired OTP"),
+    },
+    examples=[
+        OpenApiExample(
+            "Login verify example",
+            value={"email": "alice@example.com", "code": "193847"},
+            request_only=True,
+        ),
+    ],
+)
+class LoginVerifyView(APIView):
+    """Step 2 — validates OTP and returns JWT tokens."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = LoginVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        user = data["user"]
 
         return Response(
             {
                 "access": data["access"],
                 "refresh": data["refresh"],
-                "user": UserSerializer(user, context={"request": request}).data,
+                "user": UserSerializer(data["user"], context={"request": request}).data,
             },
             status=status.HTTP_200_OK,
         )
